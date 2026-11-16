@@ -23,14 +23,37 @@ data class StoriesModel(
         }
     }
 
+    /**
+     * Returns the previous slide index, or null when [currentIndex] is invalid
+     * or already points to the first slide.
+     */
+    fun getPreviousIndex(currentIndex: Int): Int? =
+        if (currentIndex in slides.indices) currentIndex.takeIf { it > 0 }?.minus(1) else null
+
+    /**
+     * Returns the next slide index, or null when [currentIndex] is invalid
+     * or already points to the last slide.
+     */
+    fun getNextIndex(currentIndex: Int): Int? =
+        if (currentIndex in slides.indices) (currentIndex + 1).takeIf { it in slides.indices } else null
+
+    /**
+     * Compatibility helpers for callers that navigate by slide instance.
+     * Identity is checked first so equal slides at different positions remain distinguishable.
+     */
     fun getPrevious(current: Slide): Slide? {
-        val index = slides.indexOf(current)
-        return slides.getOrNull(index - 1)
+        val index = indexOf(current)
+        return if (index >= 0) slides.getOrNull(index - 1) else null
     }
 
     fun getNext(current: Slide): Slide? {
-        val index = slides.indexOf(current)
-        return slides.getOrNull(index + 1)
+        val index = indexOf(current)
+        return if (index >= 0) slides.getOrNull(index + 1) else null
+    }
+
+    private fun indexOf(current: Slide): Int {
+        val identityIndex = slides.indexOfFirst { it === current }
+        return if (identityIndex >= 0) identityIndex else slides.indexOf(current)
     }
 
     data class Slide(

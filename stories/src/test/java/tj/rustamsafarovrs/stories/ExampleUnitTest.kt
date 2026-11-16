@@ -1,5 +1,6 @@
 package tj.rustamsafarovrs.stories
 
+import androidx.compose.runtime.Composable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -11,37 +12,62 @@ class StoriesModelTest {
         StoriesModel.Slide(background = StoriesModel.Slide.Background.Url(url))
 
     @Test
-    fun getNext_returnsFollowingSlide() {
-        val first = slide("https://example.com/1.jpg")
-        val second = slide("https://example.com/2.jpg")
-        val model = StoriesModel(listOf(first, second))
+    fun getNextIndex_returnsFollowingIndex() {
+        val model = StoriesModel(listOf(slide("1"), slide("2"), slide("3")))
 
-        assertEquals(second, model.getNext(first))
+        assertEquals(1, model.getNextIndex(0))
+        assertEquals(2, model.getNextIndex(1))
+        assertNull(model.getNextIndex(2))
     }
 
     @Test
-    fun getNext_returnsNullForLastSlide() {
-        val last = slide("https://example.com/last.jpg")
-        val model = StoriesModel(listOf(last))
+    fun getPreviousIndex_returnsPreviousIndex() {
+        val model = StoriesModel(listOf(slide("1"), slide("2"), slide("3")))
 
-        assertNull(model.getNext(last))
+        assertEquals(1, model.getPreviousIndex(2))
+        assertEquals(0, model.getPreviousIndex(1))
+        assertNull(model.getPreviousIndex(0))
     }
 
     @Test
-    fun getPrevious_returnsPreviousSlide() {
-        val first = slide("https://example.com/1.jpg")
-        val second = slide("https://example.com/2.jpg")
-        val model = StoriesModel(listOf(first, second))
+    fun indexNavigation_rejectsOutOfRangeIndexes() {
+        val model = StoriesModel(listOf(slide("1"), slide("2")))
 
-        assertEquals(first, model.getPrevious(second))
+        assertNull(model.getNextIndex(-1))
+        assertNull(model.getNextIndex(2))
+        assertNull(model.getPreviousIndex(-1))
+        assertNull(model.getPreviousIndex(2))
     }
 
     @Test
-    fun getPrevious_returnsNullForFirstSlide() {
-        val first = slide("https://example.com/1.jpg")
-        val model = StoriesModel(listOf(first))
+    fun indexNavigation_handlesEqualSlidesAtDifferentPositions() {
+        val sharedOverlay: @Composable () -> Unit = {}
+        val first = StoriesModel.Slide(StoriesModel.Slide.Background.Url("same"), sharedOverlay)
+        val second = StoriesModel.Slide(StoriesModel.Slide.Background.Url("same"), sharedOverlay)
+        val third = slide("last")
+        val model = StoriesModel(listOf(first, second, third))
 
-        assertNull(model.getPrevious(first))
+        assertEquals(2, model.getNextIndex(1))
+        assertEquals(1, model.getPreviousIndex(2))
+        assertEquals(third, model.getNext(second))
+    }
+
+    @Test
+    fun slideNavigation_usesIdentityForEqualSlides() {
+        val sharedOverlay: @Composable () -> Unit = {}
+        val first = StoriesModel.Slide(StoriesModel.Slide.Background.Url("same"), sharedOverlay)
+        val second = StoriesModel.Slide(StoriesModel.Slide.Background.Url("same"), sharedOverlay)
+        val model = StoriesModel(listOf(first, second, slide("last")))
+
+        assertEquals(slide("last").background, model.getNext(second)?.background)
+    }
+
+    @Test
+    fun unknownSlide_doesNotWrapToFirstSlide() {
+        val model = StoriesModel(listOf(slide("1"), slide("2")))
+
+        assertNull(model.getNext(slide("not-in-model")))
+        assertNull(model.getPrevious(slide("not-in-model")))
     }
 
     @Test
@@ -53,11 +79,43 @@ class StoriesModelTest {
 
     @Test
     fun invalidInitialIndex_isRejected() {
+        val slides = listOf(slide("1"))
+
         assertThrows(IllegalArgumentException::class.java) {
-            StoriesModel(
-                slides = listOf(slide("https://example.com/1.jpg")),
-                initialSlideIndex = 1,
-            )
+            StoriesModel(slides = slides, initialSlideIndex = -1)
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            StoriesModel(slides = slides, initialSlideIndex = 1)
+        }
+    }
+
+    @Test
+    fun nonPositiveSlideDuration_isRejected() {
+        val slides = listOf(slide("1"))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            StoriesModel(slides, config = StoriesDefaults(slideDurationMs = 0L))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StoriesModel(slides, config = StoriesDefaults(slideDurationMs = -1L))
+        }
+    }
+
+    @Test
+    fun controllerCallbacks_canBeCleared() {
+        val controller = StoriesController()
+        var calls = 0
+        controller.next = { calls++ }
+        controller.previous = { calls++ }
+        controller.play = { calls++ }
+        controller.pause = { calls++ }
+
+        controller.clearCallbacks()
+        controller.goNext()
+        controller.goPrevious()
+        controller.doPlay()
+        controller.doPause()
+
+        assertEquals(0, calls)
     }
 }
