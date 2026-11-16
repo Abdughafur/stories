@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.delay
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.random.Random
 
 /**
  * Created by Rustam Safarov on 6/19/25.
@@ -25,49 +22,41 @@ internal fun ClickArea(
     playClicked: () -> Unit,
     pauseClicked: () -> Unit,
 ) {
-    var pauseTriggered = false
     Box(
         Modifier
             .fillMaxSize()
-            .pointerInput(currentIndex) {
+            .pointerInput(currentIndex, max, config) {
+                var pausedByGesture = false
                 detectTapGestures(
                     onPress = {
-                        if (config.clickToPauseEnabled == false) {
-                            return@detectTapGestures
-                        }
-                        val released = try {
-                            delay(Random.nextInt(150, 300).toLong())
-                            pauseClicked.invoke()
-                            pauseTriggered = true
+                        try {
                             tryAwaitRelease()
-                        } catch (_: CancellationException) {
-                            false
+                        } finally {
+                            if (pausedByGesture) {
+                                playClicked()
+                                pausedByGesture = false
+                            }
                         }
-                        if (released) {
-                            playClicked.invoke()
-                        }
-                        pauseTriggered = false
                     },
-                    onTap = {
+                    onLongPress = {
+                        if (config.clickToPauseEnabled != false) {
+                            pausedByGesture = true
+                            pauseClicked()
+                        }
+                    },
+                    onTap = { offset ->
                         if (config.clickToChangeEnabled == false) {
                             return@detectTapGestures
                         }
-                        if (pauseTriggered) {
-                            return@detectTapGestures
-                        }
-                        if (it.x < size.width / 2) {
-                            if (currentIndex == 0) {
-                                return@detectTapGestures
+                        if (offset.x < size.width / 2) {
+                            if (currentIndex > 0) {
+                                previousClicked()
                             }
-                            previousClicked.invoke()
-                        } else {
-                            if (currentIndex > max - 1) {
-                                return@detectTapGestures
-                            }
-                            nextClicked.invoke()
+                        } else if (currentIndex < max - 1) {
+                            nextClicked()
                         }
                     },
                 )
-            }
+            },
     )
 }
