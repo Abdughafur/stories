@@ -13,32 +13,32 @@ data class StoriesModel(
     val config: StoriesDefaults = StoriesDefaults(),
     val initialSlideIndex: Int = 0,
 ) {
+    init {
+        require(slides.isNotEmpty()) { "StoriesModel must contain at least one slide." }
+        require(initialSlideIndex in slides.indices) {
+            "initialSlideIndex must be a valid index in slides."
+        }
+        require(config.slideDurationMs > 0L) {
+            "slideDurationMs must be greater than zero."
+        }
+    }
 
     fun getPrevious(current: Slide): Slide? {
         val index = slides.indexOf(current)
-        if (index <= 0 || index > slides.size) {
-            return null
-        }
-        return slides[slides.indexOf(current) - 1]
+        return slides.getOrNull(index - 1)
     }
 
     fun getNext(current: Slide): Slide? {
         val index = slides.indexOf(current)
-        if (index < 0 || index >= slides.size - 1) {
-            return null
-        }
-        return slides[index + 1]
+        return slides.getOrNull(index + 1)
     }
 
     data class Slide(
         val background: Background,
-        val overlay: @Composable () -> Unit = {}
+        val overlay: @Composable () -> Unit = {},
     ) {
-
         sealed class Background {
-
             data class Drawable(@DrawableRes val id: Int) : Background()
-
             data class Url(val url: String) : Background()
         }
     }
