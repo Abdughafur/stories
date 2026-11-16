@@ -16,8 +16,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 internal fun ClickArea(
-    currentIndex: Int,
-    max: Int,
     config: StoriesDefaults,
     isPlaying: Boolean,
     previousClicked: () -> Unit,
@@ -25,8 +23,6 @@ internal fun ClickArea(
     playClicked: () -> Unit,
     pauseClicked: () -> Unit,
 ) {
-    val latestIndex by rememberUpdatedState(currentIndex)
-    val latestMax by rememberUpdatedState(max)
     val latestConfig by rememberUpdatedState(config)
     val latestIsPlaying by rememberUpdatedState(isPlaying)
     val latestPreviousClicked by rememberUpdatedState(previousClicked)
@@ -66,8 +62,8 @@ internal fun ClickArea(
                         }
 
                         if (offset.x < size.width / 2) {
-                            if (latestIndex > 0) latestPreviousClicked()
-                        } else if (latestIndex < latestMax - 1) {
+                            latestPreviousClicked()
+                        } else {
                             latestNextClicked()
                         }
                     },

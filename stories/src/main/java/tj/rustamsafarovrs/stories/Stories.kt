@@ -82,8 +82,6 @@ fun Stories(
             config = model.config,
         )
         ClickArea(
-            currentIndex = currentIndex,
-            max = model.slides.size,
             config = model.config,
             isPlaying = slideState == SlideState.Play,
             previousClicked = { controller.goPrevious() },
