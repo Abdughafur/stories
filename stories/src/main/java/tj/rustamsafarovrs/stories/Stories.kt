@@ -23,40 +23,45 @@ fun Stories(
     controller: StoriesController = remember { StoriesController() },
     didFinish: () -> Unit = {},
 ) {
-    var current by remember { mutableStateOf(model.slides[model.initialSlideIndex]) }
+    var current by remember(model) {
+        mutableStateOf(model.slides[model.initialSlideIndex])
+    }
     var progress by remember { mutableLongStateOf(0L) }
-    var slideState by remember { mutableStateOf<SlideState>(SlideState.Play) }
+    var slideState by remember(controller) {
+        mutableStateOf<SlideState>(SlideState.Play)
+    }
 
-    LaunchedEffect(Unit) {
+    // Keep controller callbacks in sync with the latest model and current slide.
+    LaunchedEffect(controller, model, current, didFinish) {
         controller.next = {
             val next = model.getNext(current)
             if (next != null) {
                 current = next
             } else {
-                didFinish.invoke()
+                didFinish()
             }
         }
 
         controller.previous = {
-            val previous = model.getPrevious(current)
-            if (previous != null) {
-                current = previous
-            }
+            model.getPrevious(current)?.let { current = it }
         }
 
         controller.play = { slideState = SlideState.Play }
         controller.pause = { slideState = SlideState.Pause }
     }
 
+    // Reset progress only when the active slide changes.
     LaunchedEffect(current) {
         progress = 0L
-        while (progress < model.config.slideDurationMs) {
-            delay(50L)
-            if (slideState == SlideState.Play) {
-                progress = progress + 50L
+    }
+
+    // Restart the ticker when playback is paused/resumed without losing progress.
+    LaunchedEffect(current, slideState, model.config.slideDurationMs) {
+        if (slideState == SlideState.Play) {
+            while (progress < model.config.slideDurationMs) {
+                delay(50L)
+                progress = (progress + 50L).coerceAtMost(model.config.slideDurationMs)
             }
-        }
-        if (progress >= model.config.slideDurationMs) {
             controller.goNext()
         }
     }
@@ -66,7 +71,7 @@ fun Stories(
         ProgressIndicators(
             count = model.slides.size,
             currentIndex = model.slides.indexOf(current),
-            progress = (progress.toFloat() * 100 / model.config.slideDurationMs.toFloat()) / 100,
+            progress = progress.toFloat() / model.config.slideDurationMs.toFloat(),
             config = model.config,
         )
         ClickArea(
